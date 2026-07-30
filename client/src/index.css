@@ -1,5 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn-base {
+    @apply relative inline-flex overflow-hidden cursor-pointer w-full rounded-[80px] border-0 outline-none px-5 transition-all duration-300 ease-in-out justify-center items-center shadow-none;
+  }
+
+  .btn-base:focus,
+  .btn-base:active,
+  .btn-base:focus-visible {
+    @apply outline-none shadow-none;
+  }
+
+  .btn-base:hover {
+    background-color: var(--hover-bg) !important;
+    color: var(--hover-text) !important;
+    transform: translateY(-2px) scale(1.04);
+  }
+
+  .btn-base:hover .btn-label {
+    color: var(--hover-text) !important;
+  }
+
+  .btn-label {
+    @apply z-10 font-semibold text-[15px] text-center tracking-[0.5px] transition-colors duration-300;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
