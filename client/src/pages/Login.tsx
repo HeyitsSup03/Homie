@@ -1,17 +1,39 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import bgImage from '../assets/login-bg.jpeg';
 import logoImg from '../assets/logo.png';
 import Button from '../ui/button';
+import { useAuth, getErrorMessage } from '../context/AuthContext';
 
 const Login: React.FC = () => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: wire to AuthContext login()
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await login(email, password);
+      // AuthContext.login() sets user — read role from returned context
+      // Navigate after a tick so user state is flushed
+      const stored = localStorage.getItem('homie_token');
+      if (stored) {
+        // Decode role from JWT payload (no library needed)
+        const payload = JSON.parse(atob(stored.split('.')[1]));
+        navigate(payload.role === 'owner' ? '/owner/dashboard' : '/seeker/dashboard', { replace: true });
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -138,9 +160,14 @@ const Login: React.FC = () => {
                 </Link>
               </div>
 
+              {/* Inline error message */}
+              {error && (
+                <p className="text-[0.75rem] text-red-500 text-center mb-3">{error}</p>
+              )}
+
               {/* Login Button — full width pill, sage green */}
               <Button
-                text="Login"
+                text={isSubmitting ? 'Logging in...' : 'Login'}
                 bgColor="#4A7546"
                 textColor="#ffffff"
                 hoverBgColor="#3a5e37"
@@ -148,6 +175,7 @@ const Login: React.FC = () => {
                 width="100%"
                 height="48px"
                 type="submit"
+                disabled={isSubmitting}
               />
             </form>
           </div>

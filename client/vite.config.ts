@@ -7,4 +7,6 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  // Treat uppercase .PNG files as static assets (Windows naming convention)
+  assetsInclude: ['**/*.PNG'],
 });

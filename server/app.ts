@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import authRoutes from './src/routes/authRoutes';
+import listingRoutes from './src/routes/listingRoutes';
 
 const app: Application = express();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/listings', listingRoutes);
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {

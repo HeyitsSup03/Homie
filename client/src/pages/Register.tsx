@@ -1,21 +1,45 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import bgImage from '../assets/login-bg.jpeg';
 import logoImg from '../assets/logo.png';
 import Button from '../ui/button';
+import { useAuth, getErrorMessage } from '../context/AuthContext';
 
 type Role = 'seeker' | 'owner';
 
 const Register: React.FC = () => {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const initialRole = (['seeker', 'owner'].includes(searchParams.get('role') ?? '')
+    ? searchParams.get('role')
+    : 'seeker') as Role;
+
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('seeker');
+  const [role, setRole] = useState<Role>(initialRole);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: wire to AuthContext register()
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await register(name, email, password, role);
+      const stored = localStorage.getItem('homie_token');
+      if (stored) {
+        const payload = JSON.parse(atob(stored.split('.')[1]));
+        navigate(payload.role === 'owner' ? '/owner/create-listing' : '/seeker/dashboard', { replace: true });
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -186,9 +210,14 @@ const Register: React.FC = () => {
                 </div>
               </div>
 
+              {/* Inline error message */}
+              {error && (
+                <p className="text-[0.75rem] text-red-500 text-center mb-3">{error}</p>
+              )}
+
               {/* Sign Up Button */}
               <Button
-                text="Create Account"
+                text={isSubmitting ? 'Creating account...' : 'Create Account'}
                 bgColor="#4A7546"
                 textColor="#ffffff"
                 hoverBgColor="#3a5e37"
@@ -196,6 +225,7 @@ const Register: React.FC = () => {
                 width="100%"
                 height="48px"
                 type="submit"
+                disabled={isSubmitting}
               />
             </form>
           </div>

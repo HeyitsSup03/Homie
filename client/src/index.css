@@ -21,6 +21,13 @@
     transform: translateY(-2px) scale(1.04);
   }
 
+  .btn-base:disabled {
+    opacity: 0.6;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    transform: none !important;
+  }
+
   .btn-base:hover .btn-label {
     color: var(--hover-text) !important;
   }

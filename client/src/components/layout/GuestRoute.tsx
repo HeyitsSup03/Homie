@@ -3,8 +3,10 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 /**
- * Inverse guard — keeps logged-in users away from /login and /register.
+ * Inverse guard — keeps logged-in users away from /, /login and /register.
  * Redirects them to their role's home instead.
+ * Owners always go to /owner/dashboard (first-time or returning).
+ * Seekers always go to /seeker/dashboard.
  */
 const GuestRoute: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -12,8 +14,8 @@ const GuestRoute: React.FC = () => {
   if (isLoading) return null; // Wait for rehydration
 
   if (user) {
-    // Owner -> create listing page, Seeker -> search/landing page
-    return <Navigate to={user.role === 'owner' ? '/owner/create-listing' : '/'} replace />;
+    // Owner -> owner dashboard, Seeker -> seeker dashboard
+    return <Navigate to={user.role === 'owner' ? '/owner/dashboard' : '/seeker/dashboard'} replace />;
   }
 
   return <Outlet />;
