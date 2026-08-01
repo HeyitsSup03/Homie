@@ -52,3 +52,61 @@ export const createListing = asyncHandler(async (req: Request, res: Response) =>
 
   res.status(201).json({ listing });
 });
+
+// GET /api/listings/my-listings  (owner only)
+export const getMyListings = asyncHandler(async (req: Request, res: Response) => {
+  const listings = await Listing.find({ owner: req.user!._id })
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({ listings });
+});
+
+// GET /api/listings/:id  (any authenticated user)
+export const getListingById = asyncHandler(async (req: Request, res: Response) => {
+  const listing = await Listing.findById(req.params.id)
+    .populate('owner', 'name email phone');
+
+  if (!listing) {
+    res.status(404).json({ message: 'Listing not found.' });
+    return;
+  }
+
+  res.status(200).json({ listing });
+});
+
+// GET /api/listings/nearby  (any authenticated user)
+export const getNearbyListings = asyncHandler(async (req: Request, res: Response) => {
+  const { lat, lng, radiusKm } = req.query as {
+    lat?: string;
+    lng?: string;
+    radiusKm?: string;
+  };
+
+  if (!lat || !lng) {
+    res.status(400).json({ message: 'lat and lng query parameters are required.' });
+    return;
+  }
+
+  const latitude = parseFloat(lat);
+  const longitude = parseFloat(lng);
+  const radius = parseFloat(radiusKm ?? '20');
+
+  if (isNaN(latitude) || isNaN(longitude)) {
+    res.status(400).json({ message: 'lat and lng must be valid numbers.' });
+    return;
+  }
+
+  const listings = await Listing.find({
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude], // [lng, lat] — GeoJSON order
+        },
+        $maxDistance: radius * 1000, // metres
+      },
+    },
+  }).limit(50);
+
+  res.status(200).json({ listings });
+});

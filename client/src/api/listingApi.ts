@@ -47,9 +47,19 @@ export const createListingApi = async (
 };
 
 /**
+ * GET /api/listings/my-listings
+ * Owner only — returns all listings created by the logged-in owner, newest first.
+ */
+export const getMyListingsApi = async (): Promise<Listing[]> => {
+  const { data } = await axiosClient.get<{ listings: Listing[] }>(
+    '/listings/my-listings'
+  );
+  return data.listings;
+};
+
+/**
  * GET /api/listings/:id
- * Returns a single listing by its MongoDB _id.
- * (Will be used in Phase 4 — Listing Detail Page)
+ * Returns a single listing by its MongoDB _id, with owner name/email populated.
  */
 export const getListingByIdApi = async (id: string): Promise<Listing> => {
   const { data } = await axiosClient.get<{ listing: Listing }>(

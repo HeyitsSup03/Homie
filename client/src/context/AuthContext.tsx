@@ -28,6 +28,7 @@ interface AuthContextValue {
     role: UserRole
   ) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -40,6 +41,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.getItem(TOKEN_KEY)
   );
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const fetchedUser = await getMeApi();
+      setUser(fetchedUser);
+    } catch {
+      // ignore refresh errors if unauthorized
+    }
+  }, []);
 
   // On mount: rehydrate session from localStorage
   useEffect(() => {
@@ -94,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

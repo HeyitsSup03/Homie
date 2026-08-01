@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User, { UserRole } from '../models/User';
+import Listing from '../models/Listing';
 import asyncHandler from '../utils/asyncHandler';
 
 // Helper to sign a JWT for a user
@@ -9,6 +10,13 @@ const signToken = (id: string, name: string, email: string, role: string): strin
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET not configured');
   return jwt.sign({ id, name, email, role }, secret, { expiresIn: '7d' });
+};
+
+// Helper to check if owner has at least one listing
+const checkHasListing = async (userId: unknown, role: string): Promise<boolean> => {
+  if (role !== 'owner') return false;
+  const count = await Listing.countDocuments({ owner: userId });
+  return count > 0;
 };
 
 // POST /api/auth/register
@@ -45,6 +53,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create({ name, email, passwordHash, role });
 
   const token = signToken(String(user._id), user.name, user.email, user.role);
+  const hasListing = await checkHasListing(user._id, user.role);
 
   res.status(201).json({
     token,
@@ -53,6 +62,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      hasListing,
     },
   });
 });
@@ -83,6 +93,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = signToken(String(user._id), user.name, user.email, user.role);
+  const hasListing = await checkHasListing(user._id, user.role);
 
   res.status(200).json({
     token,
@@ -91,6 +102,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      hasListing,
     },
   });
 });
@@ -104,6 +116,8 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
+  const hasListing = await checkHasListing(user._id, user.role);
+
   res.status(200).json({
     user: {
       id: user._id,
@@ -111,6 +125,8 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       phone: user.phone,
+      hasListing,
     },
   });
 });
+

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Button from '../ui/button';
 import { useAuth } from '../context/AuthContext';
 import { createListingApi, CreateListingPayload } from '../api/listingApi';
@@ -27,7 +27,7 @@ interface Step2Data {
 }
 
 const OwnerListingForm: React.FC = () => {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const navigate = useNavigate();
 
     const [step, setStep] = useState<1 | 2>(1);
@@ -116,6 +116,7 @@ const OwnerListingForm: React.FC = () => {
         };
         try {
             await createListingApi(payload);
+            await refreshUser();
             navigate('/owner/dashboard', { replace: true });
         } catch (err) {
             setError(getErrorMessage(err));
@@ -156,9 +157,7 @@ const OwnerListingForm: React.FC = () => {
             >
                 {/* Logo overlay */}
                 <div className="absolute top-5 left-6 z-10">
-                    <Link to="/">
-                        <img src={logoImg} alt="Homie" className="h-[50px] object-contain cursor-pointer" />
-                    </Link>
+                    <img src={logoImg} alt="Homie" className="h-[50px] object-contain" />
                 </div>
             </div>
 

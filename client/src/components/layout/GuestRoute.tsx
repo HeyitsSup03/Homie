@@ -14,8 +14,10 @@ const GuestRoute: React.FC = () => {
   if (isLoading) return null; // Wait for rehydration
 
   if (user) {
-    // Owner -> owner dashboard, Seeker -> seeker dashboard
-    return <Navigate to={user.role === 'owner' ? '/owner/dashboard' : '/seeker/dashboard'} replace />;
+    if (user.role === 'owner') {
+      return <Navigate to={user.hasListing ? '/owner/dashboard' : '/owner/create-listing'} replace />;
+    }
+    return <Navigate to="/seeker/dashboard" replace />;
   }
 
   return <Outlet />;

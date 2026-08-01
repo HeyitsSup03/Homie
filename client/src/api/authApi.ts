@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   phone?: string;
+  hasListing?: boolean;
 }
 
 export interface AuthResponse {
