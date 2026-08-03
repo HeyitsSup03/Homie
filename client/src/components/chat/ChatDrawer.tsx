@@ -136,7 +136,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     <div className="fixed inset-0 z-[2000] flex justify-end bg-black/40 backdrop-blur-sm transition-opacity">
       {/* Drawer Container */}
       <div className="w-full max-w-[420px] bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
-        
+
         {/* Header */}
         <div className="px-5 py-4 bg-[#faf9f6] border-b border-[#f0ede8] flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -149,7 +149,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               </h3>
               {listingTitle && (
                 <p className="text-[0.72rem] text-[#888] line-clamp-1">
-                  🏠 {listingTitle}
+                  {listingTitle}
                 </p>
               )}
             </div>
@@ -200,16 +200,14 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               return (
                 <div
                   key={msg._id}
-                  className={`flex flex-col max-w-[80%] ${
-                    isMine ? 'self-end items-end' : 'self-start items-start'
-                  }`}
+                  className={`flex flex-col max-w-[80%] ${isMine ? 'self-end items-end' : 'self-start items-start'
+                    }`}
                 >
                   <div
-                    className={`px-4 py-2.5 rounded-[18px] text-[0.85rem] leading-relaxed break-words shadow-sm ${
-                      isMine
+                    className={`px-4 py-2.5 rounded-[18px] text-[0.85rem] leading-relaxed break-words shadow-sm ${isMine
                         ? 'bg-[#4A7546] text-white rounded-br-[4px]'
                         : 'bg-white text-[#1a1a1a] border border-[#f0ede8] rounded-bl-[4px]'
-                    }`}
+                      }`}
                   >
                     {msg.text}
                   </div>

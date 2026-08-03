@@ -175,7 +175,7 @@ const OwnerDashboard: React.FC = () => {
     // Fetch interest inbox
     getOwnerInterestsApi()
       .then(data => { if (!cancelled) setInterests(data); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { if (!cancelled) setInterestsLoading(false); });
 
     return () => { cancelled = true; };
@@ -200,7 +200,7 @@ const OwnerDashboard: React.FC = () => {
       setInterests(prev =>
         prev.map(i => i._id === interestId ? updated : i)
       );
-    } catch {}
+    } catch { }
     finally { setUpdatingId(null); }
   };
 
@@ -349,12 +349,12 @@ const OwnerDashboard: React.FC = () => {
                             <p className="text-[0.9rem] font-bold text-[#1a1a1a]">{seeker?.name ?? 'Unknown'}</p>
                             {seeker?.occupation && (
                               <span className="px-2 py-[2px] bg-[#f5f2ee] text-[#555] text-[0.68rem] rounded-full font-medium">
-                                💼 {seeker.occupation}
+                                {seeker.occupation}
                               </span>
                             )}
                           </div>
                           {seeker?.email && <p className="text-[0.75rem] text-[#888]">{seeker.email}</p>}
-                          {seeker?.phone && <p className="text-[0.75rem] text-[#888]">📞 {seeker.phone}</p>}
+                          {seeker?.phone && <p className="text-[0.75rem] text-[#888]"> {seeker.phone}</p>}
                           {seeker?.bio && (
                             <p className="text-[0.78rem] text-[#555] mt-1 bg-[#faf9f6] p-2 rounded-lg border border-[#f0ede8]">
                               "{seeker.bio}"
@@ -368,7 +368,7 @@ const OwnerDashboard: React.FC = () => {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#eaf3ea] text-[#3a7a3a] hover:bg-[#d8ebd8] text-[0.75rem] font-bold rounded-full transition-colors border border-[#c2e0c2]"
                               >
-                                <span>📄</span> View Tenant Resume PDF
+                                <span></span> View Tenant Resume PDF
                               </a>
                             </div>
                           )}
@@ -377,12 +377,12 @@ const OwnerDashboard: React.FC = () => {
 
                       {/* Status badge */}
                       <span className={`px-3 py-1 text-[0.72rem] font-bold rounded-full flex-shrink-0
-                        ${ interest.status === 'pending' ? 'bg-[#fff8e6] text-[#b8840a]'
+                        ${interest.status === 'pending' ? 'bg-[#fff8e6] text-[#b8840a]'
                           : interest.status === 'accepted' ? 'bg-[#eaf3ea] text-[#3a7a3a]'
-                          : 'bg-[#fdf0f0] text-[#c77]'}`}>
-                        { interest.status === 'pending' ? 'Pending ⏳'
-                          : interest.status === 'accepted' ? 'Accepted ✅'
-                          : 'Declined ❌' }
+                            : 'bg-[#fdf0f0] text-[#c77]'}`}>
+                        {interest.status === 'pending' ? 'Pending ⏳'
+                          : interest.status === 'accepted' ? 'Accepted '
+                            : 'Declined '}
                       </span>
                     </div>
 
@@ -421,7 +421,7 @@ const OwnerDashboard: React.FC = () => {
                     {interest.status === 'accepted' && (
                       <div className="flex items-center justify-between pt-2 border-t border-[#f5f2ee]">
                         <span className="text-[0.75rem] text-[#4A7546] font-medium">
-                          ✨ Match unlocked
+                          Match unlocked
                         </span>
                         <button
                           onClick={() =>

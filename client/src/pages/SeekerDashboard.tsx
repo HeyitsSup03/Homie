@@ -215,7 +215,7 @@ const SeekerDashboard: React.FC = () => {
           setAcceptedMatches(accepted);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, []);
 
@@ -370,13 +370,12 @@ const SeekerDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowFilterPanel(prev => !prev)}
-              className={`px-3.5 py-[9px] text-[0.82rem] font-semibold rounded-full border transition-colors flex items-center gap-1.5 flex-shrink-0 ${
-                showFilterPanel || minRent || maxRent || selectedAmenities.length > 0 || sortBy
-                  ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
-                  : 'bg-[#faf9f6] border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
-              }`}
+              className={`px-3.5 py-[9px] text-[0.82rem] font-semibold rounded-full border transition-colors flex items-center gap-1.5 flex-shrink-0 ${showFilterPanel || minRent || maxRent || selectedAmenities.length > 0 || sortBy
+                ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
+                : 'bg-[#faf9f6] border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
+                }`}
             >
-              <span>⚙️</span> Filters
+              Filters
               {(minRent || maxRent || selectedAmenities.length > 0 || sortBy) && (
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
               )}
@@ -438,7 +437,7 @@ const SeekerDashboard: React.FC = () => {
               to="/seeker/profile"
               className="px-4 py-2 text-[0.8rem] font-semibold text-[#1a1a1a] bg-[#faf9f6] border border-[#d4cfc8] rounded-full hover:bg-[#f0ede8] transition-colors"
             >
-              Profile 👤
+              Profile
             </Link>
 
             {user?.name && (
@@ -558,11 +557,10 @@ const SeekerDashboard: React.FC = () => {
                         key={amenity}
                         type="button"
                         onClick={() => toggleAmenityFilter(amenity)}
-                        className={`px-3 py-1 text-[0.72rem] font-medium rounded-full transition-all border ${
-                          isSelected
-                            ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
-                            : 'bg-white border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
-                        }`}
+                        className={`px-3 py-1 text-[0.72rem] font-medium rounded-full transition-all border ${isSelected
+                          ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
+                          : 'bg-white border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
+                          }`}
                       >
                         {amenity}
                       </button>

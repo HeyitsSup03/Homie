@@ -22,8 +22,8 @@ import logoImg from '../assets/logo.png';
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
 // ── Amenity icon map ───────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ const PropertyDetails: React.FC = () => {
         setInterestStatus(existing.status);
         setInterestId(existing._id);
       }
-    }).catch(() => {}); // Silent — don't block the detail page
+    }).catch(() => { }); // Silent — don't block the detail page
   }, [id, user?.role]);
 
   const handleExpressInterest = async () => {
@@ -239,9 +239,8 @@ const PropertyDetails: React.FC = () => {
                           <button
                             key={idx}
                             onClick={() => setActiveImageIndex(idx)}
-                            className={`relative flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition-all ${
-                              isActive ? 'border-[#4A7546] ring-2 ring-[#4A7546]/30 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
-                            }`}
+                            className={`relative flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition-all ${isActive ? 'border-[#4A7546] ring-2 ring-[#4A7546]/30 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                              }`}
                           >
                             <img src={fullUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
                           </button>
@@ -366,7 +365,7 @@ const PropertyDetails: React.FC = () => {
                     {interestStatus === 'accepted' && (
                       <div className="flex flex-col gap-2">
                         <div className="w-full py-2 bg-[#eaf3ea] text-[#3a7a3a] text-[0.8rem] font-bold rounded-full text-center">
-                          Accepted ✅ — Match Unlocked!
+                          Accepted  — Match Unlocked!
                         </div>
                         <button
                           onClick={() => setIsChatOpen(true)}
@@ -407,7 +406,7 @@ const PropertyDetails: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-[0.88rem] font-semibold text-[#1a1a1a]">
-                    {(listing.ownerDetails ?? (listing.owner as any))?.name ?? 'Property Owner'}
+                      {(listing.ownerDetails ?? (listing.owner as any))?.name ?? 'Property Owner'}
                     </p>
                     <p className="text-[0.72rem] text-[#aaa]">Owner</p>
                   </div>
@@ -428,7 +427,7 @@ const PropertyDetails: React.FC = () => {
                     href={`tel:${(listing.ownerDetails ?? (listing.owner as any)).phone}`}
                     className="flex items-center gap-2 text-[0.8rem] text-[#555] hover:text-[#4A7546] transition-colors"
                   >
-                    <span>📞</span>
+
                     <span>{(listing.ownerDetails ?? (listing.owner as any))?.phone}</span>
                   </a>
                 )}
