@@ -7,6 +7,13 @@ export interface ListingLocation {
   coordinates: [number, number]; // [longitude, latitude]
 }
 
+export interface OwnerDetails {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+}
+
 export interface Listing {
   _id: string;
   owner: string;
@@ -19,6 +26,7 @@ export interface Listing {
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
+  ownerDetails?: OwnerDetails; // populated when fetched via GET /listings/:id
 }
 
 export interface CreateListingPayload {

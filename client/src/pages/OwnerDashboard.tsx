@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMyListingsApi, Listing } from '../api/listingApi';
+import {
+  getOwnerInterestsApi,
+  updateInterestStatusApi,
+  Interest,
+} from '../api/interestApi';
+import { ChatDrawer } from '../components/chat/ChatDrawer';
 import logoImg from '../assets/logo.png';
 import ownerBg from '../assets/owner-bg.jpeg';
 
@@ -92,13 +98,18 @@ const ListingCard: React.FC<{ listing: Listing }> = ({ listing }) => {
         </div>
       )}
 
-      {/* Rent + date */}
+      {/* Rent + date + View Details */}
       <div className="flex items-center justify-between mt-auto pt-2 border-t border-[#f5f2ee]">
         <span className="text-[1rem] font-bold text-[#4A7546]">
           ₹{listing.rent.toLocaleString('en-IN')}
           <span className="text-[0.72rem] font-normal text-[#aaa]">/mo</span>
         </span>
-        <span className="text-[0.7rem] text-[#bbb]">Listed {formattedDate}</span>
+        <Link
+          to={`/listings/${listing._id}`}
+          className="text-[0.72rem] font-semibold text-[#4A7546] hover:underline"
+        >
+          View Details →
+        </Link>
       </div>
     </div>
   );
@@ -130,14 +141,44 @@ const OwnerDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Interest inbox state ───────────────────────────────────────
+  const [interests, setInterests] = useState<Interest[]>([]);
+  const [interestsLoading, setInterestsLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // ── Chat state ─────────────────────────────────────────────────
+  const [activeChat, setActiveChat] = useState<{
+    interestId: string;
+    partnerName: string;
+    listingTitle?: string;
+  } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     getMyListingsApi()
       .then(data => { if (!cancelled) setListings(data); })
       .catch(() => { if (!cancelled) setError('Failed to load listings. Please try again.'); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
+
+    // Fetch interest inbox
+    getOwnerInterestsApi()
+      .then(data => { if (!cancelled) setInterests(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setInterestsLoading(false); });
+
     return () => { cancelled = true; };
   }, []);
+
+  const handleStatusUpdate = async (interestId: string, status: 'accepted' | 'declined') => {
+    setUpdatingId(interestId);
+    try {
+      const updated = await updateInterestStatusApi(interestId, status);
+      setInterests(prev =>
+        prev.map(i => i._id === interestId ? updated : i)
+      );
+    } catch {}
+    finally { setUpdatingId(null); }
+  };
 
   const handleLogout = () => {
     logout();
@@ -234,7 +275,139 @@ const OwnerDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* ── Interested Seekers Inbox ── */}
+        <div className="mt-14">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-[1.4rem] font-extrabold text-[#1a1a1a] tracking-[-0.02em]">
+              Interested Seekers
+            </h2>
+            {interests.length > 0 && (
+              <span className="px-3 py-1 bg-[#4A7546] text-white text-[0.72rem] font-bold rounded-full">
+                {interests.filter(i => i.status === 'pending').length} new
+              </span>
+            )}
+          </div>
+
+          {interestsLoading && (
+            <p className="text-[0.85rem] text-[#aaa]">Loading requests…</p>
+          )}
+
+          {!interestsLoading && interests.length === 0 && (
+            <div className="bg-white rounded-[18px] px-8 py-10 text-center" style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
+              <div className="text-4xl mb-3">📬</div>
+              <p className="text-[0.9rem] font-semibold text-[#1a1a1a] mb-1">No interest requests yet</p>
+              <p className="text-[0.8rem] text-[#aaa]">When seekers express interest in your listings, they'll appear here.</p>
+            </div>
+          )}
+
+          {!interestsLoading && interests.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {interests.map(interest => {
+                const seeker = typeof interest.seeker === 'object' ? interest.seeker : null;
+                const listing = typeof interest.listing === 'object' ? interest.listing : null;
+                const isPending = interest.status === 'pending';
+                const isUpdating = updatingId === interest._id;
+
+                return (
+                  <div
+                    key={interest._id}
+                    className="bg-white rounded-[18px] p-5 flex flex-col gap-4"
+                    style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="flex flex-wrap items-start gap-4 justify-between">
+                      {/* Seeker info */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#e8ede8] flex items-center justify-center text-[#4A7546] font-bold text-[1rem] flex-shrink-0">
+                          {seeker?.name?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <div>
+                          <p className="text-[0.9rem] font-bold text-[#1a1a1a]">{seeker?.name ?? 'Unknown'}</p>
+                          {seeker?.email && <p className="text-[0.75rem] text-[#888]">{seeker.email}</p>}
+                          {seeker?.phone && <p className="text-[0.75rem] text-[#888]">📞 {seeker.phone}</p>}
+                        </div>
+                      </div>
+
+                      {/* Status badge */}
+                      <span className={`px-3 py-1 text-[0.72rem] font-bold rounded-full flex-shrink-0
+                        ${ interest.status === 'pending' ? 'bg-[#fff8e6] text-[#b8840a]'
+                          : interest.status === 'accepted' ? 'bg-[#eaf3ea] text-[#3a7a3a]'
+                          : 'bg-[#fdf0f0] text-[#c77]'}`}>
+                        { interest.status === 'pending' ? 'Pending ⏳'
+                          : interest.status === 'accepted' ? 'Accepted ✅'
+                          : 'Declined ❌' }
+                      </span>
+                    </div>
+
+                    {/* Property info */}
+                    {listing && (
+                      <div className="flex items-center gap-3 text-[0.8rem] text-[#555] bg-[#faf9f6] rounded-[10px] px-4 py-2">
+                        <span className="font-semibold text-[#1a1a1a]">{listing.title}</span>
+                        <span className="text-[#bbb]">·</span>
+                        <span className="text-[#4A7546] font-semibold">₹{listing.rent.toLocaleString('en-IN')}/mo</span>
+                        <Link to={`/listings/${listing._id}`} className="ml-auto text-[0.72rem] text-[#4A7546] hover:underline">
+                          View →
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* Accept / Decline actions */}
+                    {isPending && (
+                      <div className="flex gap-3 justify-end">
+                        <button
+                          onClick={() => handleStatusUpdate(interest._id, 'declined')}
+                          disabled={isUpdating}
+                          className="px-5 py-2 text-[0.8rem] font-semibold text-[#c77] border border-[#f0c0c0] rounded-full hover:bg-[#fdf0f0] disabled:opacity-50 transition-colors"
+                        >
+                          {isUpdating ? '…' : 'Decline'}
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(interest._id, 'accepted')}
+                          disabled={isUpdating}
+                          className="px-5 py-2 text-[0.8rem] font-semibold text-white bg-[#4A7546] rounded-full hover:bg-[#3a5e37] disabled:opacity-50 transition-colors"
+                        >
+                          {isUpdating ? '…' : 'Accept'}
+                        </button>
+                      </div>
+                    )}
+
+                    {interest.status === 'accepted' && (
+                      <div className="flex items-center justify-between pt-2 border-t border-[#f5f2ee]">
+                        <span className="text-[0.75rem] text-[#4A7546] font-medium">
+                          ✨ Match unlocked
+                        </span>
+                        <button
+                          onClick={() =>
+                            setActiveChat({
+                              interestId: interest._id,
+                              partnerName: seeker?.name ?? 'Seeker',
+                              listingTitle: listing?.title,
+                            })
+                          }
+                          className="px-4 py-1.5 text-[0.78rem] font-bold text-white bg-[#4A7546] rounded-full hover:bg-[#3a5e37] transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <span>💬</span> Open Chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </main>
+
+      {/* Chat Drawer Modal */}
+      {activeChat && (
+        <ChatDrawer
+          isOpen={!!activeChat}
+          onClose={() => setActiveChat(null)}
+          interestId={activeChat.interestId}
+          partnerName={activeChat.partnerName}
+          listingTitle={activeChat.listingTitle}
+        />
+      )}
     </div>
   );
 };

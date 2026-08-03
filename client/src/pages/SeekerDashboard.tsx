@@ -11,15 +11,18 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../context/AuthContext';
 import { getNearbyListingsApi, Listing } from '../api/listingApi';
+import { getSeekerInterestsApi, Interest } from '../api/interestApi';
 import { geocodeQuery } from '../services/geocode';
+import { ChatDrawer } from '../components/chat/ChatDrawer';
 import logoImg from '../assets/logo.png';
+import sidebarBg from '../assets/seekers-dashboard-bg.PNG';
 
 // ── Fix Leaflet default icon path broken by Vite/Webpack ──────────────────
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
 // ── Custom price-label marker ──────────────────────────────────────────────
@@ -114,6 +117,13 @@ const ResultCard: React.FC<{
       <span className={`w-[5px] h-[5px] rounded-full ${listing.isAvailable ? 'bg-[#4A7546]' : 'bg-[#bbb]'}`} />
       {listing.isAvailable ? 'Available' : 'Unavailable'}
     </span>
+    <Link
+      to={`/listings/${listing._id}`}
+      onClick={e => e.stopPropagation()}
+      className="inline-block mt-2 text-[0.72rem] font-semibold text-[#4A7546] hover:underline"
+    >
+      View Details →
+    </Link>
   </div>
 );
 
@@ -121,25 +131,73 @@ const ResultCard: React.FC<{
 const DEFAULT_CENTER: [number, number] = [22.5726, 88.3639]; // Kolkata
 const DEFAULT_ZOOM = 11;
 
+// ── Session Cache Key ──────────────────────────────────────────────────────
+const SEARCH_CACHE_KEY = 'homie_seeker_search_cache';
+
+interface CachedSearchState {
+  searchInput: string;
+  searchLabel: string | null;
+  mapCenter: [number, number];
+  mapZoom: number;
+  listings: Listing[];
+  hasSearched: boolean;
+}
+
+const getInitialCache = (): CachedSearchState | null => {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const SeekerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [searchInput, setSearchInput] = useState('');
-  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
-  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
-  const [listings, setListings] = useState<Listing[]>([]);
+  // Restore from cache if returning from PropertyDetails page
+  const cached = getInitialCache();
+
+  const [searchInput, setSearchInput] = useState(cached?.searchInput ?? '');
+  const [mapCenter, setMapCenter] = useState<[number, number]>(cached?.mapCenter ?? DEFAULT_CENTER);
+  const [mapZoom, setMapZoom] = useState(cached?.mapZoom ?? DEFAULT_ZOOM);
+  const [listings, setListings] = useState<Listing[]>(cached?.listings ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchLabel, setSearchLabel] = useState<string | null>(null);
+  const [searchLabel, setSearchLabel] = useState<string | null>(cached?.searchLabel ?? null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(cached?.hasSearched ?? false);
+
+  // ── Matches & Chat state ─────────────────────────────────────────
+  const [acceptedMatches, setAcceptedMatches] = useState<Interest[]>([]);
+  const [showMatchesDropdown, setShowMatchesDropdown] = useState(false);
+  const [activeChat, setActiveChat] = useState<{
+    interestId: string;
+    partnerName: string;
+    listingTitle?: string;
+  } | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const popupRefs = useRef<Record<string, L.Marker | null>>({});
 
+  // Fetch seeker's accepted matches on mount
+  useEffect(() => {
+    let cancelled = false;
+    getSeekerInterestsApi()
+      .then(interests => {
+        if (!cancelled) {
+          const accepted = interests.filter(i => i.status === 'accepted');
+          setAcceptedMatches(accepted);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const handleLogout = () => {
+    sessionStorage.removeItem(SEARCH_CACHE_KEY);
     logout();
     navigate('/', { replace: true });
   };
@@ -154,12 +212,28 @@ const SeekerDashboard: React.FC = () => {
 
     try {
       const { lat, lng, displayName } = await geocodeQuery(searchInput.trim());
-      setMapCenter([lat, lng]);
-      setMapZoom(12);
+      const newCenter: [number, number] = [lat, lng];
+      const newZoom = 12;
+
+      setMapCenter(newCenter);
+      setMapZoom(newZoom);
       setSearchLabel(displayName);
 
       const results = await getNearbyListingsApi({ lat, lng, radiusKm: 20 });
       setListings(results);
+
+      // Save to sessionStorage cache so navigating to listing details and back keeps state
+      sessionStorage.setItem(
+        SEARCH_CACHE_KEY,
+        JSON.stringify({
+          searchInput: searchInput.trim(),
+          searchLabel: displayName,
+          mapCenter: newCenter,
+          mapZoom: newZoom,
+          listings: results,
+          hasSearched: true,
+        })
+      );
     } catch (err: any) {
       setError(err?.message ?? 'Search failed. Please try again.');
       setListings([]);
@@ -223,8 +297,57 @@ const SeekerDashboard: React.FC = () => {
             </button>
           </form>
 
-          {/* User + logout — right */}
-          <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
+          {/* User + Matches + logout — right */}
+          <div className="flex items-center gap-3 flex-shrink-0 ml-auto relative">
+            {acceptedMatches.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMatchesDropdown(prev => !prev)}
+                  className="px-4 py-2 text-[0.8rem] font-bold text-white bg-[#4A7546] rounded-full hover:bg-[#3a5e37] transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <span>💬</span> My Matches
+                  <span className="w-5 h-5 bg-white text-[#4A7546] rounded-full text-[0.7rem] font-extrabold flex items-center justify-center">
+                    {acceptedMatches.length}
+                  </span>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showMatchesDropdown && (
+                  <div className="absolute right-0 mt-2 w-[280px] bg-white rounded-[16px] shadow-xl border border-[#f0ede8] py-2 z-[3000] animate-in fade-in slide-in-from-top-2 duration-200">
+                    <p className="px-4 py-2 text-[0.75rem] font-bold text-[#888] border-b border-[#f5f2ee]">
+                      ACCEPTED MATCHES ({acceptedMatches.length})
+                    </p>
+                    <div className="max-h-[240px] overflow-y-auto">
+                      {acceptedMatches.map(match => {
+                        const listing = typeof match.listing === 'object' ? match.listing : null;
+                        return (
+                          <button
+                            key={match._id}
+                            onClick={() => {
+                              setShowMatchesDropdown(false);
+                              setActiveChat({
+                                interestId: match._id,
+                                partnerName: 'Property Host',
+                                listingTitle: listing?.title,
+                              });
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-[#faf9f6] flex flex-col gap-0.5 transition-colors border-b border-[#f9f8f6] last:border-0"
+                          >
+                            <span className="text-[0.82rem] font-bold text-[#1a1a1a]">
+                              {listing?.title ?? 'Property Listing'}
+                            </span>
+                            <span className="text-[0.72rem] text-[#4A7546] font-medium">
+                              Open Chat 💬
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {user?.name && (
               <span className="text-[0.82rem] text-[#888]">
                 Hello, <span className="font-semibold text-[#1a1a1a]">{user.name}</span>
@@ -280,12 +403,23 @@ const SeekerDashboard: React.FC = () => {
         </div>
 
         {/* Sidebar */}
-        <div className="w-[380px] flex-shrink-0 bg-white border-l border-[#f0ede8] flex flex-col overflow-hidden">
+        <div className="relative w-[380px] flex-shrink-0 bg-[#faf9f6] border-l border-[#f0ede8] flex flex-col overflow-hidden">
+
+          <div
+            className="absolute inset-0 pointer-events-none z-0 opacity-50"
+            style={{
+              backgroundImage: `url(${sidebarBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'bottom center',
+              transform: 'translateY(77px)', //  Increase this number (e.g. 50px, 100px, 150px) to push it further down
+            }}
+          />
+
 
           {/* Sidebar header */}
-          <div className="flex-shrink-0 px-5 py-4 border-b border-[#f5f2ee]">
+          <div className="relative z-10 flex-shrink-0 px-5 py-3 border-b border-[#f5f2ee] bg-white/90 backdrop-blur-sm">
             {!hasSearched && (
-              <p className="text-[0.82rem] text-[#aaa]">Search for a location to find properties nearby.</p>
+              <p className="text-[0.82rem] text-[#888]"> <span className='flex justify-center items-center mt-4'>Search for a location to find properties nearby</span>.</p>
             )}
             {hasSearched && !isLoading && !error && (
               <p className="text-[0.82rem] text-[#555]">
@@ -299,7 +433,7 @@ const SeekerDashboard: React.FC = () => {
           </div>
 
           {/* Scrollable results */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
 
             {/* Loading skeletons */}
             {isLoading && (
@@ -310,9 +444,10 @@ const SeekerDashboard: React.FC = () => {
               </>
             )}
 
-            {/* Initial prompt */}
+
             {!hasSearched && !isLoading && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-16">
+              <div className="flex flex-col items-center justify-center h-full text-center py-16"
+                style={{ transform: 'translateY(-77px)' }}>
                 <div className="text-5xl mb-4">🗺️</div>
                 <p className="text-[0.85rem] text-[#aaa] max-w-[220px]">
                   Enter a city or area above to discover nearby rentals.
@@ -345,6 +480,17 @@ const SeekerDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Chat Drawer Modal */}
+      {activeChat && (
+        <ChatDrawer
+          isOpen={!!activeChat}
+          onClose={() => setActiveChat(null)}
+          interestId={activeChat.interestId}
+          partnerName={activeChat.partnerName}
+          listingTitle={activeChat.listingTitle}
+        />
+      )}
     </div>
   );
 };
