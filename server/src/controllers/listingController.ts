@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Listing from '../models/Listing';
-import geocodeAddress from '../services/geocode';
+import geocodeAddress, { geocodeAddressDetailed } from '../services/geocode';
 import asyncHandler from '../utils/asyncHandler';
 
 // POST /api/listings  (owner only)
@@ -165,4 +165,16 @@ export const deleteListing = asyncHandler(async (req: Request, res: Response) =>
   await Listing.findByIdAndDelete(req.params.id);
 
   res.status(200).json({ message: 'Listing deleted successfully.' });
+});
+
+// GET /api/listings/geocode?q=  (any authenticated user)
+export const geocodeSearch = asyncHandler(async (req: Request, res: Response) => {
+  const { q } = req.query as { q?: string };
+  if (!q || !q.trim()) {
+    res.status(400).json({ message: 'Query parameter q is required.' });
+    return;
+  }
+
+  const result = await geocodeAddressDetailed(q.trim());
+  res.status(200).json(result);
 });

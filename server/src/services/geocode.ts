@@ -1,12 +1,12 @@
 const OPENCAGE_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
 
-/**
- * Converts a plain-text address into [longitude, latitude] coordinates
- * using the OpenCage Geocoding API.
- *
- * @throws Error if the address cannot be geocoded (zero results or API failure).
- */
-const geocodeAddress = async (address: string): Promise<[number, number]> => {
+export interface GeocodeResult {
+  lat: number;
+  lng: number;
+  displayName: string;
+}
+
+export const geocodeAddressDetailed = async (address: string): Promise<GeocodeResult> => {
   const apiKey = process.env.OPENCAGE_API_KEY;
   if (!apiKey) {
     throw new Error('OPENCAGE_API_KEY is not configured in environment variables.');
@@ -21,7 +21,7 @@ const geocodeAddress = async (address: string): Promise<[number, number]> => {
   }
 
   const data = (await response.json()) as {
-    results: { geometry: { lat: number; lng: number } }[];
+    results: { geometry: { lat: number; lng: number }; formatted: string }[];
     status: { code: number; message: string };
   };
 
@@ -30,9 +30,19 @@ const geocodeAddress = async (address: string): Promise<[number, number]> => {
   }
 
   const { lat, lng } = data.results[0].geometry;
+  const displayName = data.results[0].formatted;
 
+  return { lat, lng, displayName };
+};
+
+/**
+ * Converts a plain-text address into [longitude, latitude] coordinates
+ * using the OpenCage Geocoding API.
+ */
+const geocodeAddress = async (address: string): Promise<[number, number]> => {
+  const res = await geocodeAddressDetailed(address);
   // GeoJSON convention: [longitude, latitude]
-  return [lng, lat];
+  return [res.lng, res.lat];
 };
 
 export default geocodeAddress;
