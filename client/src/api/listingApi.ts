@@ -23,6 +23,7 @@ export interface Listing {
   amenities: string[];
   address: string;
   location: ListingLocation;
+  images: string[];
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface CreateListingPayload {
   description?: string;
   amenities?: string[];
   address: string;
+  images?: string[];
 }
 
 // ── API calls ──────────────────────────────────────────────────────────────
@@ -76,19 +78,47 @@ export const getListingByIdApi = async (id: string): Promise<Listing> => {
   return data.listing;
 };
 
-/**
- * GET /api/listings/nearby?lat=&lng=&radiusKm=
- * Returns listings within a given radius of a coordinate.
- * (Will be used in Phase 3 — Search + Map)
- */
-export const getNearbyListingsApi = async (params: {
+export interface NearbyListingsParams {
   lat: number;
   lng: number;
   radiusKm?: number;
-}): Promise<Listing[]> => {
+  minRent?: number;
+  maxRent?: number;
+  amenities?: string[];
+  sortBy?: 'price_asc' | 'price_desc' | 'newest';
+}
+
+/**
+ * GET /api/listings/nearby?lat=&lng=&radiusKm=&minRent=&maxRent=&amenities=&sortBy=
+ * Returns listings within a given radius of a coordinate with optional budget/amenity filters & sorting.
+ */
+export const getNearbyListingsApi = async (
+  params: NearbyListingsParams
+): Promise<Listing[]> => {
+  const queryParams: Record<string, any> = {
+    lat: params.lat,
+    lng: params.lng,
+  };
+
+  if (params.radiusKm !== undefined) queryParams.radiusKm = params.radiusKm;
+  if (params.minRent !== undefined) queryParams.minRent = params.minRent;
+  if (params.maxRent !== undefined) queryParams.maxRent = params.maxRent;
+  if (params.amenities && params.amenities.length > 0) {
+    queryParams.amenities = params.amenities.join(',');
+  }
+  if (params.sortBy) queryParams.sortBy = params.sortBy;
+
   const { data } = await axiosClient.get<{ listings: Listing[] }>(
     '/listings/nearby',
-    { params }
+    { params: queryParams }
   );
   return data.listings;
+};
+
+/**
+ * DELETE /api/listings/:id
+ * Owner only — deletes a listing by ID.
+ */
+export const deleteListingApi = async (id: string): Promise<void> => {
+  await axiosClient.delete(`/listings/${id}`);
 };

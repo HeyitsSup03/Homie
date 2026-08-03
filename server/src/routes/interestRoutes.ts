@@ -4,6 +4,7 @@ import {
   getOwnerInterests,
   getSeekerInterests,
   updateInterestStatus,
+  deleteInterest,
 } from '../controllers/interestController';
 import auth from '../middleware/auth';
 import requireRole from '../middleware/requireRole';
@@ -21,5 +22,8 @@ router.get('/my-interests', auth, requireRole('seeker'), getSeekerInterests);
 
 // PATCH /api/interests/:id/status — owner only
 router.patch('/:id/status', auth, requireRole('owner'), updateInterestStatus);
+
+// DELETE /api/interests/:id — seeker or owner
+router.delete('/:id', auth, deleteInterest);
 
 export default router;

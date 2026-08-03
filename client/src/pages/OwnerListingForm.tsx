@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../ui/button';
 import { useAuth } from '../context/AuthContext';
 import { createListingApi, CreateListingPayload } from '../api/listingApi';
+import { uploadPropertyImagesApi } from '../api/userApi';
 import { getErrorMessage } from '../api/authApi';
 import logoImg from '../assets/logo.png';
 import bgImg from '../assets/listing1.PNG';
@@ -19,6 +20,7 @@ interface Step1Data {
     rent: string;
     description: string;
     amenities: string[];
+    images: string[];
 }
 
 interface Step2Data {
@@ -40,7 +42,43 @@ const OwnerListingForm: React.FC = () => {
         rent: '',
         description: '',
         amenities: [],
+        images: [],
     });
+
+    const [isUploadingImages, setIsUploadingImages] = useState(false);
+    const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? []);
+        if (files.length === 0) return;
+
+        if (step1.images.length + files.length > 5) {
+            setImageUploadError('You can upload a maximum of 5 property photos.');
+            return;
+        }
+
+        setImageUploadError(null);
+        setIsUploadingImages(true);
+
+        try {
+            const uploadedUrls = await uploadPropertyImagesApi(files);
+            setStep1(prev => ({
+                ...prev,
+                images: [...prev.images, ...uploadedUrls],
+            }));
+        } catch (err: any) {
+            setImageUploadError(err?.response?.data?.message ?? 'Failed to upload images.');
+        } finally {
+            setIsUploadingImages(false);
+        }
+    };
+
+    const handleRemoveImage = (indexToRemove: number) => {
+        setStep1(prev => ({
+            ...prev,
+            images: prev.images.filter((_, idx) => idx !== indexToRemove),
+        }));
+    };
 
     const [step2, setStep2] = useState<Step2Data>({
         name: user?.name ?? '',
@@ -113,6 +151,7 @@ const OwnerListingForm: React.FC = () => {
             rent: Number(step1.rent),
             description: step1.description.trim() || undefined,
             amenities: step1.amenities,
+            images: step1.images,
         };
         try {
             await createListingApi(payload);
@@ -285,6 +324,58 @@ const OwnerListingForm: React.FC = () => {
                                             })}
                                         </div>
                                     </div>
+
+                                     {/* Property Photos Upload */}
+                                     <div>
+                                         <label className={labelCls}>
+                                             Property Photos <span className="normal-case font-normal text-[#bbb]">(up to 5 photos)</span>
+                                         </label>
+                                         <div className="mt-1 flex flex-col gap-3">
+                                             {step1.images.length < 5 && (
+                                                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#d4cfc8] rounded-[14px] p-4 cursor-pointer bg-[#faf9f6] hover:border-[#4A7546] transition-colors text-center">
+                                                     <span className="text-2xl mb-1">📷</span>
+                                                     <span className="text-[0.78rem] font-semibold text-[#1a1a1a]">
+                                                         {isUploadingImages ? 'Uploading photos…' : 'Click to select property photos'}
+                                                     </span>
+                                                     <span className="text-[0.68rem] text-[#aaa]">JPEG, PNG, WEBP (max 5MB/file)</span>
+                                                     <input
+                                                         type="file"
+                                                         accept="image/jpeg,image/png,image/webp"
+                                                         multiple
+                                                         onChange={handleImageUpload}
+                                                         disabled={isUploadingImages}
+                                                         className="hidden"
+                                                     />
+                                                 </label>
+                                             )}
+
+                                             {imageUploadError && (
+                                                 <p className="text-[0.75rem] text-red-500 font-medium">{imageUploadError}</p>
+                                             )}
+
+                                             {/* Thumbnails Grid */}
+                                             {step1.images.length > 0 && (
+                                                 <div className="grid grid-cols-5 gap-2">
+                                                     {step1.images.map((imgUrl, idx) => {
+                                                         const fullUrl = imgUrl.startsWith('http') ? imgUrl : `http://localhost:5000${imgUrl}`;
+                                                         return (
+                                                             <div key={idx} className="relative group aspect-square rounded-[10px] overflow-hidden border border-[#e0dcd5] bg-[#faf9f6]">
+                                                                 <img src={fullUrl} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                                                                 <button
+                                                                     type="button"
+                                                                     onClick={() => handleRemoveImage(idx)}
+                                                                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[0.65rem] flex items-center justify-center opacity-90 hover:bg-red-600 transition-colors"
+                                                                     title="Remove photo"
+                                                                 >
+                                                                     ✕
+                                                                 </button>
+                                                             </div>
+                                                         );
+                                                     })}
+                                                 </div>
+                                             )}
+                                         </div>
+                                     </div>
 
                                     {/* Next button */}
                                     <div className="flex justify-end pt-2">

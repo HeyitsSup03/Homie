@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Interest from '../models/Interest';
 import Listing from '../models/Listing';
+import Message from '../models/Message';
 import asyncHandler from '../utils/asyncHandler';
 
 // POST /api/interests  (seeker only)
@@ -48,7 +49,7 @@ export const expressInterest = asyncHandler(async (req: Request, res: Response) 
 // GET /api/interests/my-listings  (owner only)
 export const getOwnerInterests = asyncHandler(async (req: Request, res: Response) => {
   const interests = await Interest.find({ owner: req.user!._id })
-    .populate('seeker', 'name email phone')
+    .populate('seeker', 'name email phone resumeUrl bio occupation')
     .populate('listing', 'title address rent')
     .sort({ createdAt: -1 });
 
@@ -58,7 +59,8 @@ export const getOwnerInterests = asyncHandler(async (req: Request, res: Response
 // GET /api/interests/my-interests  (seeker only)
 export const getSeekerInterests = asyncHandler(async (req: Request, res: Response) => {
   const interests = await Interest.find({ seeker: req.user!._id })
-    .populate('listing', 'title address rent')
+    .populate('listing', 'title address rent images')
+    .populate('owner', 'name email phone')
     .sort({ createdAt: -1 });
 
   res.status(200).json({ interests });
@@ -93,4 +95,30 @@ export const updateInterestStatus = asyncHandler(async (req: Request, res: Respo
   await interest.populate('listing', 'title address rent');
 
   res.status(200).json({ interest });
+});
+
+// DELETE /api/interests/:id  (seeker or owner)
+export const deleteInterest = asyncHandler(async (req: Request, res: Response) => {
+  const interest = await Interest.findById(req.params.id);
+  if (!interest) {
+    res.status(404).json({ message: 'Interest request not found.' });
+    return;
+  }
+
+  const userIdStr = req.user!._id.toString();
+  const seekerIdStr = interest.seeker.toString();
+  const ownerIdStr = interest.owner.toString();
+
+  if (userIdStr !== seekerIdStr && userIdStr !== ownerIdStr) {
+    res.status(403).json({ message: 'Not authorised to delete this interest request.' });
+    return;
+  }
+
+  // Delete associated chat messages
+  await Message.deleteMany({ interest: req.params.id });
+
+  // Delete interest record
+  await Interest.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({ message: 'Interest request and chat history deleted.' });
 });

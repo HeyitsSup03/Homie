@@ -1,10 +1,13 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import path from 'path';
 import authRoutes from './src/routes/authRoutes';
 import listingRoutes from './src/routes/listingRoutes';
 import interestRoutes from './src/routes/interestRoutes';
 import messageRoutes from './src/routes/messageRoutes';
+import userRoutes from './src/routes/userRoutes';
+import uploadRoutes from './src/routes/uploadRoutes';
 
 const app: Application = express();
 
@@ -18,11 +21,16 @@ app.use(
 
 app.use(express.json());
 
+// Serve static uploaded files (PDF resumes, etc.)
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/interests', interestRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // 404 fallback
 app.use((_req: Request, res: Response) => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getMyListingsApi, Listing } from '../api/listingApi';
+import { getMyListingsApi, deleteListingApi, Listing } from '../api/listingApi';
 import {
   getOwnerInterestsApi,
   updateInterestStatusApi,
@@ -34,21 +34,24 @@ const SkeletonCard: React.FC = () => (
 );
 
 // ── Listing Card ────────────────────────────────────────────────────────────
-const ListingCard: React.FC<{ listing: Listing }> = ({ listing }) => {
+const ListingCard: React.FC<{ listing: Listing; onDelete: (id: string) => void }> = ({ listing, onDelete }) => {
   const visibleAmenities = listing.amenities.slice(0, MAX_VISIBLE_AMENITIES);
   const extraCount = listing.amenities.length - MAX_VISIBLE_AMENITIES;
-
-  const formattedDate = new Date(listing.createdAt).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
 
   return (
     <div
       className="bg-white rounded-[18px] p-6 flex flex-col gap-4 hover:-translate-y-1 transition-transform duration-200"
       style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
     >
+      {listing.images && listing.images.length > 0 && (
+        <div className="w-full h-[140px] rounded-[12px] overflow-hidden mb-2 bg-[#faf9f6]">
+          <img
+            src={listing.images[0].startsWith('http') ? listing.images[0] : `http://localhost:5000${listing.images[0]}`}
+            alt={listing.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
       {/* Title + availability */}
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-[1rem] font-bold text-[#1a1a1a] leading-snug flex-1">
@@ -98,18 +101,27 @@ const ListingCard: React.FC<{ listing: Listing }> = ({ listing }) => {
         </div>
       )}
 
-      {/* Rent + date + View Details */}
-      <div className="flex items-center justify-between mt-auto pt-2 border-t border-[#f5f2ee]">
+      {/* Rent + date + Delete + View Details */}
+      <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#f5f2ee]">
         <span className="text-[1rem] font-bold text-[#4A7546]">
           ₹{listing.rent.toLocaleString('en-IN')}
           <span className="text-[0.72rem] font-normal text-[#aaa]">/mo</span>
         </span>
-        <Link
-          to={`/listings/${listing._id}`}
-          className="text-[0.72rem] font-semibold text-[#4A7546] hover:underline"
-        >
-          View Details →
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onDelete(listing._id)}
+            className="p-1 text-[0.85rem] text-[#aaa] hover:text-red-500 transition-colors"
+            title="Delete Listing"
+          >
+            🗑️
+          </button>
+          <Link
+            to={`/listings/${listing._id}`}
+            className="text-[0.72rem] font-semibold text-[#4A7546] hover:underline"
+          >
+            View Details →
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -168,6 +180,18 @@ const OwnerDashboard: React.FC = () => {
 
     return () => { cancelled = true; };
   }, []);
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (!window.confirm('Are you sure you want to delete this listing? It will be removed from map search.')) {
+      return;
+    }
+    try {
+      await deleteListingApi(listingId);
+      setListings(prev => prev.filter(l => l._id !== listingId));
+    } catch {
+      alert('Failed to delete listing. Please try again.');
+    }
+  };
 
   const handleStatusUpdate = async (interestId: string, status: 'accepted' | 'declined') => {
     setUpdatingId(interestId);
@@ -270,7 +294,7 @@ const OwnerDashboard: React.FC = () => {
         {!isLoading && listings.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings.map(listing => (
-              <ListingCard key={listing._id} listing={listing} />
+              <ListingCard key={listing._id} listing={listing} onDelete={handleDeleteListing} />
             ))}
           </div>
         )}
@@ -316,14 +340,38 @@ const OwnerDashboard: React.FC = () => {
                   >
                     <div className="flex flex-wrap items-start gap-4 justify-between">
                       {/* Seeker info */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#e8ede8] flex items-center justify-center text-[#4A7546] font-bold text-[1rem] flex-shrink-0">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#e8ede8] flex items-center justify-center text-[#4A7546] font-bold text-[1rem] flex-shrink-0 mt-0.5">
                           {seeker?.name?.[0]?.toUpperCase() ?? '?'}
                         </div>
-                        <div>
-                          <p className="text-[0.9rem] font-bold text-[#1a1a1a]">{seeker?.name ?? 'Unknown'}</p>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[0.9rem] font-bold text-[#1a1a1a]">{seeker?.name ?? 'Unknown'}</p>
+                            {seeker?.occupation && (
+                              <span className="px-2 py-[2px] bg-[#f5f2ee] text-[#555] text-[0.68rem] rounded-full font-medium">
+                                💼 {seeker.occupation}
+                              </span>
+                            )}
+                          </div>
                           {seeker?.email && <p className="text-[0.75rem] text-[#888]">{seeker.email}</p>}
                           {seeker?.phone && <p className="text-[0.75rem] text-[#888]">📞 {seeker.phone}</p>}
+                          {seeker?.bio && (
+                            <p className="text-[0.78rem] text-[#555] mt-1 bg-[#faf9f6] p-2 rounded-lg border border-[#f0ede8]">
+                              "{seeker.bio}"
+                            </p>
+                          )}
+                          {seeker?.resumeUrl && (
+                            <div className="mt-2">
+                              <a
+                                href={seeker.resumeUrl.startsWith('http') ? seeker.resumeUrl : `http://localhost:5000${seeker.resumeUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#eaf3ea] text-[#3a7a3a] hover:bg-[#d8ebd8] text-[0.75rem] font-bold rounded-full transition-colors border border-[#c2e0c2]"
+                              >
+                                <span>📄</span> View Tenant Resume PDF
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
 

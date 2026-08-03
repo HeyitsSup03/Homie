@@ -8,6 +8,9 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   phone?: string;
+  resumeUrl?: string;
+  bio?: string;
+  occupation?: string;
   createdAt: Date;
 }
 
@@ -39,6 +42,20 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       trim: true,
+    },
+    resumeUrl: {
+      type: String,
+      trim: true,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+    occupation: {
+      type: String,
+      trim: true,
+      maxlength: 100,
     },
   },
   {

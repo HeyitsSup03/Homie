@@ -11,6 +11,7 @@ export interface IListing extends Document {
     type: 'Point';
     coordinates: [number, number]; // [longitude, latitude]
   };
+  images: string[];
   isAvailable: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +57,10 @@ const ListingSchema = new Schema<IListing>(
         type: [Number], // [longitude, latitude]
         required: true,
       },
+    },
+    images: {
+      type: [String],
+      default: [],
     },
     isAvailable: {
       type: Boolean,

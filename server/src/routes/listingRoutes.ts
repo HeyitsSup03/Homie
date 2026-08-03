@@ -4,6 +4,7 @@ import {
   getMyListings,
   getNearbyListings,
   getListingById,
+  deleteListing,
 } from '../controllers/listingController';
 import auth from '../middleware/auth';
 import requireRole from '../middleware/requireRole';
@@ -21,5 +22,8 @@ router.get('/nearby', auth, getNearbyListings);
 
 // GET /api/listings/:id — any authenticated user
 router.get('/:id', auth, getListingById);
+
+// DELETE /api/listings/:id — owner only
+router.delete('/:id', auth, requireRole('owner'), deleteListing);
 
 export default router;

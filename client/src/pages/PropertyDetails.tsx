@@ -122,6 +122,20 @@ const PropertyDetails: React.FC = () => {
 
   const backHref = user?.role === 'owner' ? '/owner/dashboard' : '/seeker/dashboard';
 
+  // ── Image Carousel State ──────────────────────────────────────────────────
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  const images = listing?.images ?? [];
+  const hasImages = images.length > 0;
+
+  const handleNextImage = () => {
+    setActiveImageIndex(prev => (prev + 1) % images.length);
+  };
+
+  const handlePrevImage = () => {
+    setActiveImageIndex(prev => (prev - 1 + images.length) % images.length);
+  };
+
   const lat = listing?.location.coordinates[1];
   const lng = listing?.location.coordinates[0];
 
@@ -180,6 +194,63 @@ const PropertyDetails: React.FC = () => {
 
             {/* ── LEFT: Main content ── */}
             <div className="flex-1 flex flex-col gap-7 min-w-0">
+
+              {/* Photo Gallery Carousel */}
+              {hasImages && (
+                <div className="flex flex-col gap-3">
+                  <div className="relative w-full h-[380px] rounded-[22px] overflow-hidden bg-[#1a1a1a] border border-[#f0ede8] shadow-md group">
+                    <img
+                      src={images[activeImageIndex].startsWith('http') ? images[activeImageIndex] : `http://localhost:5000${images[activeImageIndex]}`}
+                      alt={`${listing.title} - Photo ${activeImageIndex + 1}`}
+                      className="w-full h-full object-cover transition-all duration-300"
+                    />
+
+                    {/* Prev / Next controls if multiple images */}
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          onClick={handlePrevImage}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors shadow-lg"
+                          title="Previous photo"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={handleNextImage}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors shadow-lg"
+                          title="Next photo"
+                        >
+                          ›
+                        </button>
+                        <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-[0.72rem] font-bold backdrop-blur-sm">
+                          {activeImageIndex + 1} / {images.length}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Thumbnail Strip */}
+                  {images.length > 1 && (
+                    <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                      {images.map((img, idx) => {
+                        const fullUrl = img.startsWith('http') ? img : `http://localhost:5000${img}`;
+                        const isActive = idx === activeImageIndex;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveImageIndex(idx)}
+                            className={`relative flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                              isActive ? 'border-[#4A7546] ring-2 ring-[#4A7546]/30 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={fullUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Title + badges */}
               <div>

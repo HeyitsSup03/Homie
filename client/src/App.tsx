@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerListingForm from './pages/OwnerListingForm';
 import SeekerDashboard from './pages/SeekerDashboard';
+import SeekerProfile from './pages/SeekerProfile';
 import PropertyDetails from './pages/PropertyDetails';
 
 export const App: React.FC = () => {
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
           {/* Seeker-only pages */}
           <Route element={<ProtectedRoute requiredRole="seeker" />}>
             <Route path="/seeker/dashboard" element={<SeekerDashboard />} />
+            <Route path="/seeker/profile" element={<SeekerProfile />} />
           </Route>
 
           {/* Shared authenticated pages — any logged-in role */}

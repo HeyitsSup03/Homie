@@ -88,6 +88,15 @@ const ResultCard: React.FC<{
       }`}
     style={{ boxShadow: isHighlighted ? undefined : '0 1px 8px rgba(0,0,0,0.06)' }}
   >
+    {listing.images && listing.images.length > 0 && (
+      <div className="w-full h-[120px] rounded-[10px] overflow-hidden mb-3 bg-[#faf9f6]">
+        <img
+          src={listing.images[0].startsWith('http') ? listing.images[0] : `http://localhost:5000${listing.images[0]}`}
+          alt={listing.title}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    )}
     <div className="flex items-start justify-between gap-2 mb-1">
       <h3 className="text-[0.88rem] font-bold text-[#1a1a1a] leading-snug flex-1">{listing.title}</h3>
       <span className="text-[0.92rem] font-bold text-[#4A7546] flex-shrink-0">
@@ -152,6 +161,13 @@ const getInitialCache = (): CachedSearchState | null => {
   }
 };
 
+// ── Filter Amenities List ──────────────────────────────────────────────────
+const FILTER_AMENITIES = [
+  'WiFi', 'AC', 'Parking', 'Laundry',
+  'Security', 'Gym', 'Pool', 'Elevator',
+  'Pets', 'Water 24/7', 'CCTV', 'Balcony',
+];
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const SeekerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -169,6 +185,13 @@ const SeekerDashboard: React.FC = () => {
   const [searchLabel, setSearchLabel] = useState<string | null>(cached?.searchLabel ?? null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(cached?.hasSearched ?? false);
+
+  // ── Filter & Sort state ──────────────────────────────────────────
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [minRent, setMinRent] = useState<string>('');
+  const [maxRent, setMaxRent] = useState<string>('');
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'newest' | ''>('');
 
   // ── Matches & Chat state ─────────────────────────────────────────
   const [acceptedMatches, setAcceptedMatches] = useState<Interest[]>([]);
@@ -202,6 +225,54 @@ const SeekerDashboard: React.FC = () => {
     navigate('/', { replace: true });
   };
 
+  const executeFilteredSearch = async (
+    center: [number, number] = mapCenter,
+    overrideMin?: string,
+    overrideMax?: string,
+    overrideAmenities?: string[],
+    overrideSort?: 'price_asc' | 'price_desc' | 'newest' | ''
+  ) => {
+    setIsLoading(true);
+    setError(null);
+
+    const activeMin = overrideMin !== undefined ? overrideMin : minRent;
+    const activeMax = overrideMax !== undefined ? overrideMax : maxRent;
+    const activeAmenities = overrideAmenities !== undefined ? overrideAmenities : selectedAmenities;
+    const activeSort = overrideSort !== undefined ? overrideSort : sortBy;
+
+    try {
+      const results = await getNearbyListingsApi({
+        lat: center[0],
+        lng: center[1],
+        radiusKm: 20,
+        minRent: activeMin ? Number(activeMin) : undefined,
+        maxRent: activeMax ? Number(activeMax) : undefined,
+        amenities: activeAmenities,
+        sortBy: activeSort || undefined,
+      });
+
+      setListings(results);
+
+      // Update sessionStorage cache
+      sessionStorage.setItem(
+        SEARCH_CACHE_KEY,
+        JSON.stringify({
+          searchInput: searchInput.trim(),
+          searchLabel,
+          mapCenter: center,
+          mapZoom,
+          listings: results,
+          hasSearched: true,
+        })
+      );
+    } catch (err: any) {
+      setError(err?.message ?? 'Search failed. Please try again.');
+      setListings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!searchInput.trim()) return;
@@ -219,26 +290,27 @@ const SeekerDashboard: React.FC = () => {
       setMapZoom(newZoom);
       setSearchLabel(displayName);
 
-      const results = await getNearbyListingsApi({ lat, lng, radiusKm: 20 });
-      setListings(results);
-
-      // Save to sessionStorage cache so navigating to listing details and back keeps state
-      sessionStorage.setItem(
-        SEARCH_CACHE_KEY,
-        JSON.stringify({
-          searchInput: searchInput.trim(),
-          searchLabel: displayName,
-          mapCenter: newCenter,
-          mapZoom: newZoom,
-          listings: results,
-          hasSearched: true,
-        })
-      );
+      await executeFilteredSearch(newCenter);
     } catch (err: any) {
       setError(err?.message ?? 'Search failed. Please try again.');
       setListings([]);
-    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const toggleAmenityFilter = (amenity: string) => {
+    setSelectedAmenities(prev =>
+      prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]
+    );
+  };
+
+  const handleResetFilters = () => {
+    setMinRent('');
+    setMaxRent('');
+    setSelectedAmenities([]);
+    setSortBy('');
+    if (hasSearched) {
+      executeFilteredSearch(mapCenter, '', '', [], '');
     }
   };
 
@@ -276,8 +348,8 @@ const SeekerDashboard: React.FC = () => {
             <img src={logoImg} alt="Homie" className="h-[44px] object-contain" />
           </Link>
 
-          {/* Search bar — center */}
-          <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2 max-w-[520px] mx-auto">
+          {/* Search bar + Filter button — center */}
+          <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2 max-w-[580px] mx-auto">
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#bbb] text-[0.9rem]">🔍</span>
               <input
@@ -294,6 +366,20 @@ const SeekerDashboard: React.FC = () => {
               className="px-5 py-[9px] bg-[#4A7546] text-white text-[0.82rem] font-semibold rounded-full hover:bg-[#3a5e37] disabled:opacity-50 transition-colors flex-shrink-0"
             >
               {isLoading ? 'Searching…' : 'Search'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel(prev => !prev)}
+              className={`px-3.5 py-[9px] text-[0.82rem] font-semibold rounded-full border transition-colors flex items-center gap-1.5 flex-shrink-0 ${
+                showFilterPanel || minRent || maxRent || selectedAmenities.length > 0 || sortBy
+                  ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
+                  : 'bg-[#faf9f6] border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
+              }`}
+            >
+              <span>⚙️</span> Filters
+              {(minRent || maxRent || selectedAmenities.length > 0 || sortBy) && (
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              )}
             </button>
           </form>
 
@@ -348,6 +434,13 @@ const SeekerDashboard: React.FC = () => {
               </div>
             )}
 
+            <Link
+              to="/seeker/profile"
+              className="px-4 py-2 text-[0.8rem] font-semibold text-[#1a1a1a] bg-[#faf9f6] border border-[#d4cfc8] rounded-full hover:bg-[#f0ede8] transition-colors"
+            >
+              Profile 👤
+            </Link>
+
             {user?.name && (
               <span className="text-[0.82rem] text-[#888]">
                 Hello, <span className="font-semibold text-[#1a1a1a]">{user.name}</span>
@@ -361,6 +454,125 @@ const SeekerDashboard: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Collapsible Filter & Sort Panel */}
+        {showFilterPanel && (
+          <div className="bg-[#faf9f6] border-t border-[#f0ede8] px-6 py-4 transition-all animate-in slide-in-from-top-2 duration-200 shadow-inner">
+            <div className="max-w-[1200px] mx-auto flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                {/* Budget Range */}
+                <div>
+                  <label className="block text-[0.78rem] font-bold text-[#1a1a1a] mb-1.5">
+                    Budget Range (Monthly Rent)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min ₹"
+                      value={minRent}
+                      onChange={e => setMinRent(e.target.value)}
+                      className="w-full px-3 py-1.5 text-[0.82rem] border border-[#d4cfc8] rounded-xl bg-white focus:outline-none focus:border-[#4A7546]"
+                    />
+                    <span className="text-[#bbb] text-[0.8rem]">–</span>
+                    <input
+                      type="number"
+                      placeholder="Max ₹"
+                      value={maxRent}
+                      onChange={e => setMaxRent(e.target.value)}
+                      className="w-full px-3 py-1.5 text-[0.82rem] border border-[#d4cfc8] rounded-xl bg-white focus:outline-none focus:border-[#4A7546]"
+                    />
+                  </div>
+                  {/* Preset Pills */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMinRent(''); setMaxRent('15000'); }}
+                      className="px-2.5 py-0.5 text-[0.7rem] font-medium bg-white border border-[#e5e0d8] rounded-full hover:border-[#4A7546] text-[#555]"
+                    >
+                      &lt; ₹15k
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMinRent('15000'); setMaxRent('30000'); }}
+                      className="px-2.5 py-0.5 text-[0.7rem] font-medium bg-white border border-[#e5e0d8] rounded-full hover:border-[#4A7546] text-[#555]"
+                    >
+                      ₹15k – ₹30k
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMinRent('30000'); setMaxRent(''); }}
+                      className="px-2.5 py-0.5 text-[0.7rem] font-medium bg-white border border-[#e5e0d8] rounded-full hover:border-[#4A7546] text-[#555]"
+                    >
+                      &gt; ₹30k
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sort Order */}
+                <div>
+                  <label className="block text-[0.78rem] font-bold text-[#1a1a1a] mb-1.5">
+                    Sort Results By
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as any)}
+                    className="w-full px-3 py-2 text-[0.82rem] border border-[#d4cfc8] rounded-xl bg-white focus:outline-none focus:border-[#4A7546] text-[#1a1a1a]"
+                  >
+                    <option value="">Distance / Nearest</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="newest">Newest First</option>
+                  </select>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => executeFilteredSearch(mapCenter)}
+                    className="flex-1 py-2 bg-[#4A7546] text-white text-[0.82rem] font-bold rounded-xl hover:bg-[#3a5e37] transition-colors shadow-sm"
+                  >
+                    Apply Filters
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="px-4 py-2 bg-white text-[#555] border border-[#d4cfc8] text-[0.82rem] font-semibold rounded-xl hover:bg-[#eae7e1] transition-colors"
+                  >
+                    Reset All
+                  </button>
+                </div>
+              </div>
+
+              {/* Amenities Grid */}
+              <div>
+                <label className="block text-[0.78rem] font-bold text-[#1a1a1a] mb-1.5">
+                  Filter by Amenities (Properties must match all selected)
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {FILTER_AMENITIES.map(amenity => {
+                    const isSelected = selectedAmenities.includes(amenity);
+                    return (
+                      <button
+                        key={amenity}
+                        type="button"
+                        onClick={() => toggleAmenityFilter(amenity)}
+                        className={`px-3 py-1 text-[0.72rem] font-medium rounded-full transition-all border ${
+                          isSelected
+                            ? 'bg-[#4A7546] border-[#4A7546] text-white shadow-sm'
+                            : 'bg-white border-[#d4cfc8] text-[#555] hover:border-[#4A7546]'
+                        }`}
+                      >
+                        {amenity}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ── Body: map left + sidebar right ── */}

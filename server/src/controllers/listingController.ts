@@ -5,12 +5,13 @@ import asyncHandler from '../utils/asyncHandler';
 
 // POST /api/listings  (owner only)
 export const createListing = asyncHandler(async (req: Request, res: Response) => {
-  const { title, rent, description, amenities, address } = req.body as {
+  const { title, rent, description, amenities, address, images } = req.body as {
     title?: string;
     rent?: number;
     description?: string;
     amenities?: string[];
     address?: string;
+    images?: string[];
   };
 
   // 400 — required field validation
@@ -44,6 +45,7 @@ export const createListing = asyncHandler(async (req: Request, res: Response) =>
     description: description?.trim(),
     amenities: Array.isArray(amenities) ? amenities : [],
     address: address.trim(),
+    images: Array.isArray(images) ? images : [],
     location: {
       type: 'Point',
       coordinates, // [longitude, latitude]
@@ -76,10 +78,14 @@ export const getListingById = asyncHandler(async (req: Request, res: Response) =
 
 // GET /api/listings/nearby  (any authenticated user)
 export const getNearbyListings = asyncHandler(async (req: Request, res: Response) => {
-  const { lat, lng, radiusKm } = req.query as {
+  const { lat, lng, radiusKm, minRent, maxRent, amenities, sortBy } = req.query as {
     lat?: string;
     lng?: string;
     radiusKm?: string;
+    minRent?: string;
+    maxRent?: string;
+    amenities?: string;
+    sortBy?: 'price_asc' | 'price_desc' | 'newest';
   };
 
   if (!lat || !lng) {
@@ -96,7 +102,8 @@ export const getNearbyListings = asyncHandler(async (req: Request, res: Response
     return;
   }
 
-  const listings = await Listing.find({
+  // Construct MongoDB filter
+  const filter: any = {
     location: {
       $near: {
         $geometry: {
@@ -106,7 +113,56 @@ export const getNearbyListings = asyncHandler(async (req: Request, res: Response
         $maxDistance: radius * 1000, // metres
       },
     },
-  }).limit(50);
+  };
+
+  // Budget filter
+  if (minRent || maxRent) {
+    filter.rent = {};
+    if (minRent && !isNaN(parseFloat(minRent))) {
+      filter.rent.$gte = parseFloat(minRent);
+    }
+    if (maxRent && !isNaN(parseFloat(maxRent))) {
+      filter.rent.$lte = parseFloat(maxRent);
+    }
+  }
+
+  // Multi-amenity filter ($all)
+  if (amenities) {
+    const amenityList = amenities.split(',').map(a => a.trim()).filter(Boolean);
+    if (amenityList.length > 0) {
+      filter.amenities = { $all: amenityList };
+    }
+  }
+
+  let listings = await Listing.find(filter).limit(100);
+
+  // Apply in-memory sorting if explicit sortBy option is selected
+  if (sortBy === 'price_asc') {
+    listings.sort((a, b) => a.rent - b.rent);
+  } else if (sortBy === 'price_desc') {
+    listings.sort((a, b) => b.rent - a.rent);
+  } else if (sortBy === 'newest') {
+    listings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
 
   res.status(200).json({ listings });
+});
+
+// DELETE /api/listings/:id  (owner only)
+export const deleteListing = asyncHandler(async (req: Request, res: Response) => {
+  const listing = await Listing.findById(req.params.id);
+  if (!listing) {
+    res.status(404).json({ message: 'Listing not found.' });
+    return;
+  }
+
+  // Ownership verification
+  if (listing.owner.toString() !== req.user!._id.toString()) {
+    res.status(403).json({ message: 'Not authorized to delete this listing.' });
+    return;
+  }
+
+  await Listing.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({ message: 'Listing deleted successfully.' });
 });

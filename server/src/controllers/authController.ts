@@ -125,6 +125,9 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       phone: user.phone,
+      resumeUrl: user.resumeUrl,
+      bio: user.bio,
+      occupation: user.occupation,
       hasListing,
     },
   });

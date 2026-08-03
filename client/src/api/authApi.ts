@@ -10,6 +10,9 @@ export interface AuthUser {
   role: UserRole;
   phone?: string;
   hasListing?: boolean;
+  resumeUrl?: string;
+  bio?: string;
+  occupation?: string;
 }
 
 export interface AuthResponse {

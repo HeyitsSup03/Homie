@@ -9,6 +9,9 @@ export interface PopulatedSeeker {
   name: string;
   email: string;
   phone?: string;
+  resumeUrl?: string;
+  bio?: string;
+  occupation?: string;
 }
 
 export interface PopulatedListing {
@@ -16,13 +19,14 @@ export interface PopulatedListing {
   title: string;
   address: string;
   rent: number;
+  images?: string[];
 }
 
 export interface Interest {
   _id: string;
   listing: PopulatedListing | string;
   seeker: PopulatedSeeker | string;
-  owner: string;
+  owner: PopulatedSeeker | string;
   status: InterestStatus;
   message?: string;
   createdAt: string;
@@ -82,4 +86,12 @@ export const updateInterestStatusApi = async (
     { status }
   );
   return data.interest;
+};
+
+/**
+ * DELETE /api/interests/:id
+ * Seeker or Owner — deletes an interest request and chat history.
+ */
+export const deleteInterestApi = async (interestId: string): Promise<void> => {
+  await axiosClient.delete(`/interests/${interestId}`);
 };
